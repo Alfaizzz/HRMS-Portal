@@ -1,0 +1,6 @@
+{
+  "name": "HRMS Unified Enterprise Platform",
+  "description": "Production-ready Human Resource Management System with Employee Onboarding, Attendance Selfie Capture, Payroll & Salary Slips, Leave Management, and Library Management module.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
