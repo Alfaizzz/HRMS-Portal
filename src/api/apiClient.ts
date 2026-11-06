@@ -15,7 +15,6 @@ import {
   Book,
   BookIssuance,
   BookRequest,
-  WorkspaceSettings,
 } from '../types';
 
 // Real backend base URL from env or fallback to localhost:8080
@@ -77,7 +76,7 @@ const requestRealBackend = async <T>(
           detail: {
             endpoint,
             url,
-            message: 'Unable to connect to the HRMS backend at ' + REAL_API_BASE_URL,
+            message: 'Unable to connect to Spring Boot backend at ' + REAL_API_BASE_URL,
           },
         })
       );
@@ -394,25 +393,11 @@ export const documentsApi = {
 };
 
 export const attendanceApi = {
-  getWorkspaceSettings: async (): Promise<WorkspaceSettings> => {
-    if (isDemoMode()) return mockService.getWorkspaceSettings();
-    return requestRealBackend<WorkspaceSettings>('/attendance/workspace');
-  },
-  updateWorkspaceSettings: async (
-    settings: WorkspaceSettings
-  ): Promise<WorkspaceSettings> => {
-    if (isDemoMode()) return mockService.updateWorkspaceSettings(settings);
-    return requestRealBackend<WorkspaceSettings>('/attendance/workspace', {
-      method: 'PUT',
-      body: JSON.stringify(settings),
-    });
-  },
   punchIn: async (data: {
     user_id: string;
     latitude: number;
     longitude: number;
     selfie_base64?: string;
-    location_exception_reason?: string;
   }): Promise<any> => {
     if (isDemoMode()) return mockService.punchIn(data);
     return requestRealBackend('/attendance/punchIn', {
@@ -422,7 +407,6 @@ export const attendanceApi = {
         latitude: data.latitude,
         longitude: data.longitude,
         selfie_url: data.selfie_base64,
-        location_exception_reason: data.location_exception_reason,
       }),
     });
   },
@@ -430,7 +414,6 @@ export const attendanceApi = {
     user_id: string;
     latitude: number;
     longitude: number;
-    location_exception_reason?: string;
   }): Promise<any> => {
     if (isDemoMode()) return mockService.punchOut(data);
     return requestRealBackend('/attendance/punchOut', {

@@ -26,7 +26,9 @@ export const AppLayout: React.FC = () => {
             &copy; {new Date().getFullYear()} HRMS Unified Enterprise System. All rights reserved.
           </div>
           <div className="flex items-center gap-4">
-            <span>Express + PostgreSQL</span>
+            <span>Spring Boot 3.2.x</span>
+            <span>·</span>
+            <span>MySQL 8.0</span>
             <span>·</span>
             <span>React 19 + Vite</span>
           </div>
