@@ -19,7 +19,7 @@ export const DemoBanner: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
-              <strong>Backend Offline:</strong> Cannot reach Spring Boot at{' '}
+              <strong>Backend Offline:</strong> Cannot reach the HRMS backend at{' '}
               <code className="bg-amber-600/30 px-1 py-0.5 rounded">{backendUrl}</code>.
               Switch to Demo Mode to browse full mock data immediately.
             </span>
@@ -64,7 +64,7 @@ export const DemoBanner: React.FC = () => {
             <button
               onClick={toggleDemoMode}
               className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-0.5 rounded transition-colors cursor-pointer"
-              title="Switch to Real Spring Boot Backend"
+              title="Switch to Real HRMS Backend"
             >
               <span>Connect Real API</span>
               <ToggleRight className="w-4 h-4 text-emerald-400" />

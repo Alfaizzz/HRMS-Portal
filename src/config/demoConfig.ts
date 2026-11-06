@@ -63,17 +63,27 @@ export const REAL_API_BASE_URL =
 
 const DEMO_STORAGE_KEY = 'hrms_demo_mode_active';
 
+const resolveDefaultDemoMode = (): boolean => {
+  const envValue = import.meta.env.VITE_DEMO_MODE;
+  if (envValue === 'true' || envValue === 'false') {
+    return envValue === 'true';
+  }
+
+  // Default to true so presentations and sandbox runs are immediately 100% functional.
+  return true;
+};
+
 export const isDemoMode = (): boolean => {
   const stored = localStorage.getItem(DEMO_STORAGE_KEY);
-  if (stored === null) {
-    // Default to true so presentations and sandbox runs are immediately 100% functional
-    return true;
+  if (stored !== null) {
+    return stored === 'true';
   }
-  return stored === 'true';
+
+  return resolveDefaultDemoMode();
 };
 
 export const setDemoMode = (enabled: boolean): void => {
   localStorage.setItem(DEMO_STORAGE_KEY, enabled ? 'true' : 'false');
-  // Dispatch a custom storage event so all tabs/listeners update immediately
+  // Dispatch a custom storage event so all tabs/listeners update immediately.
   window.dispatchEvent(new Event('hrms-demo-mode-changed'));
 };
