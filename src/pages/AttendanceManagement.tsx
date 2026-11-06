@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { attendanceApi, employeeApi } from '../api';
-import { AttendanceRecord, PunchInRecord, User } from '../types';
+import { attendanceApi } from '../api';
+import { AttendanceRecord, PunchInRecord, WorkspaceSettings } from '../types';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
@@ -19,15 +19,42 @@ import {
   RefreshCw,
   Video,
   VideoOff,
-  UserCheck,
+  Settings2,
 } from 'lucide-react';
+
+const getDistanceInMeters = (
+  latitudeA: number,
+  longitudeA: number,
+  latitudeB: number,
+  longitudeB: number
+): number => {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latitudeDifference = radians(latitudeB - latitudeA);
+  const longitudeDifference = radians(longitudeB - longitudeA);
+  const value =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(radians(latitudeA)) *
+      Math.cos(radians(latitudeB)) *
+      Math.sin(longitudeDifference / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+};
+
+const getWorkedHours = (value?: string): number | null => {
+  if (!value) return null;
+  const match = value.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
+  if (match) {
+    return Number(match[1]) + Number(match[2]) / 60 + Number(match[3] || 0) / 3600;
+  }
+  const hours = Number.parseFloat(value);
+  return Number.isFinite(hours) ? hours : null;
+};
 
 export const AttendanceManagement: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { success, error: notifyError, warning } = useNotification();
+  const { success, error: notifyError } = useNotification();
 
-  // Active sub-view: 'punch' | 'active' | 'history'
-  const [activeTab, setActiveTab] = useState<'punch' | 'active' | 'history'>('punch');
+  // Active sub-view: 'punch' | 'active' | 'history' | 'workspace'
+  const [activeTab, setActiveTab] = useState<'punch' | 'active' | 'history' | 'workspace'>('punch');
 
   // Camera & Geolocation state
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -39,6 +66,11 @@ export const AttendanceManagement: React.FC = () => {
 
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<string>('Detecting location...');
+  const [locationAttempt, setLocationAttempt] = useState(0);
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings | null>(null);
+  const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceSettings | null>(null);
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
+  const [locationExceptionReason, setLocationExceptionReason] = useState('');
 
   // Records state
   const [activePunchIns, setActivePunchIns] = useState<PunchInRecord[]>([]);
@@ -99,31 +131,55 @@ export const AttendanceManagement: React.FC = () => {
     }
   };
 
+  const loadWorkspaceSettings = async () => {
+    try {
+      const settings = await attendanceApi.getWorkspaceSettings();
+      setWorkspaceSettings(settings);
+      setWorkspaceDraft(settings);
+    } catch (err: any) {
+      notifyError(err.message || 'Failed to load workspace settings');
+    }
+  };
+
+  useEffect(() => {
+    loadWorkspaceSettings();
+  }, []);
+
   // Detect Geolocation
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocation({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
-          setLocationStatus(
-            `GPS Verified: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
-          );
-        },
-        () => {
-          // Standard office coordinate fallback
-          setLocation({ latitude: 12.9716, longitude: 77.5946 });
-          setLocationStatus('Using Office HQ Location (Bangalore Tech Hub: 12.9716, 77.5946)');
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    } else {
-      setLocation({ latitude: 12.9716, longitude: 77.5946 });
-      setLocationStatus('Office HQ Coordinates: 12.9716, 77.5946');
+    if (!workspaceSettings) return;
+
+    setLocation(null);
+    setLocationStatus('Detecting your GPS location...');
+    if (!('geolocation' in navigator)) {
+      setLocationStatus('This browser does not support GPS location.');
+      return;
     }
-  }, []);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const currentLocation = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        const distance = getDistanceInMeters(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          workspaceSettings.office_latitude,
+          workspaceSettings.office_longitude
+        );
+        setLocation(currentLocation);
+        setLocationStatus(
+          `${Math.round(distance)}m from ${workspaceSettings.workspace_name} · ${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
+        );
+      },
+      () => {
+        setLocation(null);
+        setLocationStatus('GPS access is required to record attendance.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [workspaceSettings, locationAttempt]);
 
   // Clean up camera stream on unmount
   useEffect(() => {
@@ -157,12 +213,45 @@ export const AttendanceManagement: React.FC = () => {
   const isUserCurrentlyPunchedIn = activePunchIns.some(
     (p) => p.user_id === user?.user_id
   );
+  const distanceFromWorkspace = location && workspaceSettings
+    ? getDistanceInMeters(
+        location.latitude,
+        location.longitude,
+        workspaceSettings.office_latitude,
+        workspaceSettings.office_longitude
+      )
+    : null;
+  const isWithinWorkspace =
+    distanceFromWorkspace !== null &&
+    !!workspaceSettings &&
+    distanceFromWorkspace <= workspaceSettings.geofence_radius_meters;
+
+  const handleSaveWorkspace = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!workspaceDraft) return;
+
+    setSavingWorkspace(true);
+    try {
+      const updated = await attendanceApi.updateWorkspaceSettings(workspaceDraft);
+      setWorkspaceSettings(updated);
+      setWorkspaceDraft(updated);
+      success('Workspace settings saved.');
+    } catch (err: any) {
+      notifyError(err.message || 'Failed to save workspace settings');
+    } finally {
+      setSavingWorkspace(false);
+    }
+  };
 
   // Punch In Action
   const handlePunchIn = async () => {
     if (!user) return;
     if (!location) {
       notifyError('Location detection in progress. Please wait.');
+      return;
+    }
+    if (!isWithinWorkspace && !locationExceptionReason.trim()) {
+      notifyError('Enter a reason to clock in outside the office attendance area.');
       return;
     }
 
@@ -173,9 +262,13 @@ export const AttendanceManagement: React.FC = () => {
         latitude: location.latitude,
         longitude: location.longitude,
         selfie_base64: capturedSelfie || undefined,
+        location_exception_reason: isWithinWorkspace
+          ? undefined
+          : locationExceptionReason.trim(),
       });
 
       success('Punched In successfully for today! Work session initiated.');
+      setLocationExceptionReason('');
       stopCamera();
       loadAttendanceData();
     } catch (err: any) {
@@ -192,6 +285,10 @@ export const AttendanceManagement: React.FC = () => {
       notifyError('Location detection in progress. Please wait.');
       return;
     }
+    if (!isWithinWorkspace && !locationExceptionReason.trim()) {
+      notifyError('Enter a reason to clock out outside the office attendance area.');
+      return;
+    }
 
     if (!window.confirm('Are you sure you want to clock out for the day?')) return;
 
@@ -201,9 +298,21 @@ export const AttendanceManagement: React.FC = () => {
         user_id: user.user_id,
         latitude: location.latitude,
         longitude: location.longitude,
+        location_exception_reason: isWithinWorkspace
+          ? undefined
+          : locationExceptionReason.trim(),
       });
 
-      success(`Punched Out successfully! Duration recorded: ${record.hours || 'session closed'}`);
+      const workedHours = getWorkedHours(record.hours);
+      const belowTarget =
+        workedHours !== null &&
+        workspaceSettings !== null &&
+        workedHours < workspaceSettings.required_hours_per_day;
+      success(
+        `Punched Out successfully! Duration recorded: ${record.hours || 'session closed'}` +
+          (belowTarget ? ` (below ${workspaceSettings.required_hours_per_day}h required)` : '')
+      );
+      setLocationExceptionReason('');
       loadAttendanceData();
     } catch (err: any) {
       notifyError(err.message || 'Failed to clock out');
@@ -244,6 +353,19 @@ export const AttendanceManagement: React.FC = () => {
       key: 'punch_in_time',
       label: 'Punch In Time',
       render: (p) => <span className="font-mono tabular-nums font-semibold">{p.punch_in_time}</span>,
+    },
+    {
+      key: 'location_exception_reason',
+      label: 'Location Exception',
+      render: (p) =>
+        p.outside_office && p.location_exception_reason ? (
+          <div className="max-w-xs space-y-1">
+            <Badge variant="warning" size="sm">Outside office</Badge>
+            <p className="text-xs text-slate-600 dark:text-slate-300">{p.location_exception_reason}</p>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        ),
     },
     {
       key: 'image_location',
@@ -287,10 +409,49 @@ export const AttendanceManagement: React.FC = () => {
       key: 'hours',
       label: 'Total Hours Worked',
       render: (r) => (
-        <span className="font-mono tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
-          {r.hours || 'In Progress'}
-        </span>
+        <div className="space-y-1">
+          <span className="block font-mono tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+            {r.hours || 'In Progress'}
+          </span>
+          {r.hours && workspaceSettings && getWorkedHours(r.hours) !== null && (
+            <Badge
+              variant={
+                getWorkedHours(r.hours)! >= workspaceSettings.required_hours_per_day
+                  ? 'success'
+                  : 'warning'
+              }
+              size="sm"
+            >
+              {getWorkedHours(r.hours)! >= workspaceSettings.required_hours_per_day
+                ? 'Hours met'
+                : 'Below target'}
+            </Badge>
+          )}
+        </div>
       ),
+    },
+    {
+      key: 'location_exception_reason',
+      label: 'Location Exception',
+      render: (r) =>
+        (r.outside_office && r.location_exception_reason) ||
+        (r.clock_out_outside_office && r.clock_out_location_exception_reason) ? (
+          <div className="max-w-xs space-y-1">
+            <Badge variant="warning" size="sm">Outside office</Badge>
+            {r.location_exception_reason && (
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Clock-in: {r.location_exception_reason}
+              </p>
+            )}
+            {r.clock_out_location_exception_reason && (
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Clock-out: {r.clock_out_location_exception_reason}
+              </p>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        ),
     },
     {
       key: 'selfie_url',
@@ -344,7 +505,7 @@ export const AttendanceManagement: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab('punch')}
           className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
@@ -382,6 +543,20 @@ export const AttendanceManagement: React.FC = () => {
           <CheckCircle2 className="w-4 h-4" />
           <span>Attendance History</span>
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('workspace')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+              activeTab === 'workspace'
+                ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Settings2 className="w-4 h-4" />
+            <span>Workspace</span>
+          </button>
+        )}
       </div>
 
       {/* Tab 1: Punch Clock */}
@@ -503,10 +678,52 @@ export const AttendanceManagement: React.FC = () => {
               </div>
 
               {/* Geolocation Info */}
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg text-xs flex items-center gap-2 text-blue-900 dark:text-blue-200">
-                <MapPin className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                <span>{locationStatus}</span>
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg text-xs flex items-center justify-between gap-3 text-blue-900 dark:text-blue-200">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  {locationStatus}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLocationAttempt((attempt) => attempt + 1)}
+                  className="shrink-0 underline cursor-pointer"
+                >
+                  Refresh GPS
+                </button>
               </div>
+              {workspaceSettings && (
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+                    <span className="block text-slate-500 dark:text-slate-400">Office</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{workspaceSettings.workspace_name}</span>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+                    <span className="block text-slate-500 dark:text-slate-400">Required hours</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{workspaceSettings.required_hours_per_day}h / day</span>
+                  </div>
+                </div>
+              )}
+              {location && workspaceSettings && !isWithinWorkspace && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-lg text-xs text-rose-800 dark:text-rose-200">
+                  You are outside the {workspaceSettings.workspace_name} attendance area. Clock-in and clock-out are allowed with a required reason.
+                </div>
+              )}
+              {location && workspaceSettings && !isWithinWorkspace && (
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Reason for clocking {isUserCurrentlyPunchedIn ? 'out' : 'in'} outside the office <span className="text-rose-500">*</span>
+                  </span>
+                  <textarea
+                    value={locationExceptionReason}
+                    onChange={(event) => setLocationExceptionReason(event.target.value)}
+                    maxLength={500}
+                    required
+                    rows={3}
+                    placeholder={`Explain why you are clocking ${isUserCurrentlyPunchedIn ? 'out' : 'in'} from outside the configured office area.`}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                  />
+                </label>
+              )}
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-2">
@@ -516,7 +733,11 @@ export const AttendanceManagement: React.FC = () => {
                     variant="success"
                     size="lg"
                     className="w-full"
-                    disabled={loading}
+                    disabled={
+                      loading ||
+                      !location ||
+                      (!isWithinWorkspace && !locationExceptionReason.trim())
+                    }
                     onClick={handlePunchIn}
                     icon={<CheckCircle2 className="w-5 h-5" />}
                   >
@@ -528,7 +749,11 @@ export const AttendanceManagement: React.FC = () => {
                     variant="danger"
                     size="lg"
                     className="w-full"
-                    disabled={loading}
+                    disabled={
+                      loading ||
+                      !location ||
+                      (!isWithinWorkspace && !locationExceptionReason.trim())
+                    }
                     onClick={handlePunchOut}
                     icon={<Clock className="w-5 h-5" />}
                   >
@@ -584,6 +809,7 @@ export const AttendanceManagement: React.FC = () => {
                 />
               </div>
             )}
+
             <div className="w-full sm:w-48">
               <Input
                 type="date"
@@ -598,6 +824,97 @@ export const AttendanceManagement: React.FC = () => {
             data={filteredHistory}
             emptyMessage="No attendance logs found."
           />
+        </Card>
+      )}
+
+      {activeTab === 'workspace' && isAdmin && workspaceDraft && (
+        <Card
+          title="Attendance Workspace"
+          subtitle="Set the office location and daily hours target. Changes can be edited and saved again at any time."
+        >
+          <form onSubmit={handleSaveWorkspace} className="space-y-5">
+            <Input
+              label="Workspace name"
+              value={workspaceDraft.workspace_name}
+              onChange={(event) =>
+                setWorkspaceDraft({ ...workspaceDraft, workspace_name: event.target.value })
+              }
+              maxLength={255}
+              required
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Office latitude"
+                type="number"
+                value={workspaceDraft.office_latitude}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    office_latitude: Number(event.target.value),
+                  })
+                }
+                min={-90}
+                max={90}
+                step="any"
+                required
+              />
+              <Input
+                label="Office longitude"
+                type="number"
+                value={workspaceDraft.office_longitude}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    office_longitude: Number(event.target.value),
+                  })
+                }
+                min={-180}
+                max={180}
+                step="any"
+                required
+              />
+              <Input
+                label="Attendance radius (meters)"
+                type="number"
+                value={workspaceDraft.geofence_radius_meters}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    geofence_radius_meters: Number(event.target.value),
+                  })
+                }
+                min={10}
+                max={5000}
+                step={1}
+                helperText="Attendance can be recorded inside this distance from the office."
+                required
+              />
+              <Input
+                label="Required working hours per day"
+                type="number"
+                value={workspaceDraft.required_hours_per_day}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    required_hours_per_day: Number(event.target.value),
+                  })
+                }
+                min={0.25}
+                max={24}
+                step={0.25}
+                helperText="Shorter sessions are allowed but marked below target in attendance history."
+                required
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Configured office coordinates: {workspaceSettings?.office_latitude}, {workspaceSettings?.office_longitude}
+              </p>
+              <Button type="submit" loading={savingWorkspace} icon={<Settings2 className="w-4 h-4" />}>
+                Save Workspace Settings
+              </Button>
+            </div>
+          </form>
         </Card>
       )}
     </div>

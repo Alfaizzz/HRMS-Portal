@@ -1,0 +1,353 @@
+{
+  "departments": [
+    { "department_id": "HR01", "department_name": "Human Resources" },
+    { "department_id": "ENG01", "department_name": "Engineering" },
+    { "department_id": "FIN01", "department_name": "Finance" },
+    { "department_id": "OPS01", "department_name": "Operations" }
+  ],
+  "employees": [
+    {
+      "user_id": "admin",
+      "password": "admin123",
+      "first_name": "System",
+      "last_name": "Administrator",
+      "email_id": "admin@company.com",
+      "mobile_number": "9876543210",
+      "salary": 120000,
+      "father_name": "Robert Vance",
+      "mother_name": "Eleanor Vance",
+      "current_address": "100 Innovation Parkway, Suite 400",
+      "permanent_address": "100 Innovation Parkway, Suite 400",
+      "blood_group": "O+",
+      "dob": "1988-06-15",
+      "doj": "2020-01-10",
+      "pan_number": "ABCDE1234F",
+      "department_id": "HR01",
+      "religion": "Secular",
+      "role": "ADMIN",
+      "nationality": "Indian",
+      "job_profile": "Lead HR Operations & Systems Admin",
+      "status": "ACTIVE"
+    },
+    {
+      "user_id": "employee",
+      "password": "employee123",
+      "first_name": "Alex",
+      "last_name": "Johnson",
+      "email_id": "employee@company.com",
+      "mobile_number": "9123456789",
+      "salary": 85000,
+      "father_name": "David Johnson",
+      "mother_name": "Sarah Johnson",
+      "current_address": "42 Silicon Avenue, Tech Park",
+      "permanent_address": "42 Silicon Avenue, Tech Park",
+      "blood_group": "B+",
+      "dob": "1995-09-22",
+      "doj": "2023-04-15",
+      "pan_number": "FGHIJ5678K",
+      "department_id": "ENG01",
+      "religion": "Secular",
+      "role": "USER",
+      "nationality": "Indian",
+      "job_profile": "Senior Full Stack Engineer",
+      "status": "ACTIVE"
+    },
+    {
+      "user_id": "rhea",
+      "password": "rhea123",
+      "first_name": "Rhea",
+      "last_name": "Sharma",
+      "email_id": "rhea@company.com",
+      "mobile_number": "9988776655",
+      "salary": 76000,
+      "father_name": "Amit Sharma",
+      "mother_name": "Nisha Sharma",
+      "current_address": "15 Green Plaza, Sector 7",
+      "permanent_address": "15 Green Plaza, Sector 7",
+      "blood_group": "A+",
+      "dob": "1994-01-14",
+      "doj": "2022-05-12",
+      "pan_number": "LMNOP3456Q",
+      "department_id": "FIN01",
+      "religion": "Hindu",
+      "role": "USER",
+      "nationality": "Indian",
+      "job_profile": "Senior Analyst",
+      "status": "ACTIVE"
+    }
+  ],
+  "bankDetails": {
+    "admin": {
+      "user_id": "admin",
+      "bank_name": "HDFC Bank",
+      "account_number": "100120034567",
+      "ifsc_code": "HDFC0001234",
+      "branch_name": "Koramangala"
+    },
+    "employee": {
+      "user_id": "employee",
+      "bank_name": "ICICI Bank",
+      "account_number": "200230045678",
+      "ifsc_code": "ICIC0004567",
+      "branch_name": "Indiranagar"
+    },
+    "rhea": {
+      "user_id": "rhea",
+      "bank_name": "Axis Bank",
+      "account_number": "300340056789",
+      "ifsc_code": "UTIB0003456",
+      "branch_name": "Banjara Hills"
+    }
+  },
+  "education": {
+    "admin": {
+      "user_id": "admin",
+      "highschool": 92,
+      "secondaryschool": 89,
+      "bachelor": 86,
+      "postgraduation": 88,
+      "others": 90,
+      "highschoolname": "St. Josephs High School",
+      "secondaryschoolname": "City Public School",
+      "bachelorcollegename": "Delhi University",
+      "mastercollegename": "IIM Ahmedabad"
+    },
+    "employee": {
+      "user_id": "employee",
+      "highschool": 95,
+      "secondaryschool": 90,
+      "bachelor": 88,
+      "postgraduation": 0,
+      "others": 0,
+      "highschoolname": "Green Valley School",
+      "secondaryschoolname": "National Academy",
+      "bachelorcollegename": "BTech - IIT Delhi",
+      "mastercollegename": ""
+    },
+    "rhea": {
+      "user_id": "rhea",
+      "highschool": 89,
+      "secondaryschool": 86,
+      "bachelor": 84,
+      "postgraduation": 0,
+      "others": 0,
+      "highschoolname": "St. Marys Convent",
+      "secondaryschoolname": "City Academy",
+      "bachelorcollegename": "B.Com - Christ University",
+      "mastercollegename": ""
+    }
+  },
+  "experiences": {
+    "admin": [
+      {
+        "id": 1,
+        "user_id": "admin",
+        "previous_employer": "Cognizant",
+        "job_profile": "HR Partner",
+        "yoe": 6,
+        "dor": "2020-01-10"
+      }
+    ],
+    "employee": [
+      {
+        "id": 2,
+        "user_id": "employee",
+        "previous_employer": "TechNova Labs",
+        "job_profile": "Full Stack Engineer",
+        "yoe": 4,
+        "dor": "2023-04-15"
+      }
+    ],
+    "rhea": [
+      {
+        "id": 3,
+        "user_id": "rhea",
+        "previous_employer": "Northwind Finance",
+        "job_profile": "Junior Analyst",
+        "yoe": 3,
+        "dor": "2022-05-12"
+      }
+    ]
+  },
+  "assets": {
+    "admin": [
+      {
+        "asset_id": "A-1001",
+        "asset_name": "Laptop",
+        "asset_type": "Laptop",
+        "asset_issue_date": "2020-02-01",
+        "user_id": "admin"
+      }
+    ],
+    "employee": [
+      {
+        "asset_id": "A-2001",
+        "asset_name": "MacBook Pro",
+        "asset_type": "Laptop",
+        "asset_issue_date": "2023-05-07",
+        "user_id": "employee"
+      }
+    ],
+    "rhea": [
+      {
+        "asset_id": "A-3001",
+        "asset_name": "Dell Laptop",
+        "asset_type": "Laptop",
+        "asset_issue_date": "2022-06-11",
+        "user_id": "rhea"
+      }
+    ]
+  },
+  "holidays": [
+    { "holiday_date": "2026-01-26", "description": "Republic Day" },
+    { "holiday_date": "2026-08-15", "description": "Independence Day" },
+    { "holiday_date": "2026-10-20", "description": "Diwali" },
+    { "holiday_date": "2026-12-25", "description": "Christmas" }
+  ],
+  "leaves": [
+    {
+      "id": 1,
+      "user_id": "employee",
+      "user_name": "Alex Johnson",
+      "leave_type": "CASUAL_LEAVE",
+      "leave_date": "2026-11-12",
+      "reason": "Personal work",
+      "status": "PENDING"
+    },
+    {
+      "id": 2,
+      "user_id": "rhea",
+      "user_name": "Rhea Sharma",
+      "leave_type": "SICK_LEAVE",
+      "leave_date": "2026-11-13",
+      "reason": "Health reasons",
+      "status": "APPROVED"
+    }
+  ],
+  "punchIns": [
+    {
+      "punchin_id": 101,
+      "user_id": "employee",
+      "user_name": "Alex Johnson",
+      "date": "2026-11-04",
+      "punch_in_time": "09:00 AM",
+      "image_location": "uploads/selfies/default.png",
+      "latitude": 12.9716,
+      "longitude": 77.5946
+    }
+  ],
+  "attendanceRecords": [
+    {
+      "id": 1,
+      "user_id": "employee",
+      "date": "2026-11-04",
+      "punch_in_time": "09:00 AM",
+      "punch_out_time": "06:00 PM",
+      "hours": "9h",
+      "latitude": 12.9716,
+      "longitude": 77.5946,
+      "selfie_url": "uploads/selfies/default.png"
+    }
+  ],
+  "salaries": [
+    {
+      "id": 1,
+      "user_id": "employee",
+      "user_name": "Alex Johnson",
+      "date": "2026-11-01",
+      "basic_pay": 50000,
+      "hra": 12000,
+      "food_allowance": 3000,
+      "travel_allowance": 4000,
+      "emp_tax": 3500,
+      "epf": 2000,
+      "paye": 2500,
+      "net_salary": 54800,
+      "status": "PAID",
+      "file_path": null
+    },
+    {
+      "id": 2,
+      "user_id": "rhea",
+      "user_name": "Rhea Sharma",
+      "date": "2026-11-01",
+      "basic_pay": 42000,
+      "hra": 10000,
+      "food_allowance": 2500,
+      "travel_allowance": 3500,
+      "emp_tax": 3000,
+      "epf": 1800,
+      "paye": 2200,
+      "net_salary": 47000,
+      "status": "PENDING",
+      "file_path": null
+    }
+  ],
+  "books": [
+    {
+      "id": 1,
+      "isbn": "978-1-234567-89-0",
+      "title": "Clean Code",
+      "author": "Robert C. Martin",
+      "category": "Engineering",
+      "totalCopies": 5,
+      "availableCopies": 3,
+      "shelfLocation": "A-1",
+      "publicationYear": 2008,
+      "coverColor": "#2563eb",
+      "description": "A handbook of agile software craftsmanship."
+    },
+    {
+      "id": 2,
+      "isbn": "978-1-987654-32-1",
+      "title": "The Lean Startup",
+      "author": "Eric Ries",
+      "category": "Business",
+      "totalCopies": 4,
+      "availableCopies": 2,
+      "shelfLocation": "B-2",
+      "publicationYear": 2011,
+      "coverColor": "#f59e0b",
+      "description": "How modern companies create new products."
+    }
+  ],
+  "issuances": [
+    {
+      "id": 1,
+      "bookId": 1,
+      "bookTitle": "Clean Code",
+      "isbn": "978-1-234567-89-0",
+      "userId": "employee",
+      "userName": "Alex Johnson",
+      "userEmail": "employee@company.com",
+      "issueDate": "2026-10-15",
+      "dueDate": "2026-10-29",
+      "returnDate": null,
+      "status": "ISSUED",
+      "remarks": "Reading for sprint planning"
+    }
+  ],
+  "requests": [
+    {
+      "id": 1,
+      "bookId": 2,
+      "bookTitle": "The Lean Startup",
+      "userId": "rhea",
+      "userName": "Rhea Sharma",
+      "userEmail": "rhea@company.com",
+      "requestDate": "2026-11-02",
+      "status": "PENDING",
+      "notes": "Request for product strategy reading"
+    }
+  ],
+  "resignations": [],
+  "documents": [],
+  "profilePictures": {},
+  "workspaceSettings": {
+    "workspace_name": "Head Office",
+    "office_latitude": 12.9716,
+    "office_longitude": 77.5946,
+    "geofence_radius_meters": 150,
+    "required_hours_per_day": 8
+  }
+}

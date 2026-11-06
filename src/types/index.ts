@@ -82,9 +82,12 @@ export interface PunchInRecord {
   user_name: string;
   date: string;
   punch_in_time: string;
+  punched_at?: string;
   image_location: string;
   latitude?: number;
   longitude?: number;
+  outside_office?: boolean;
+  location_exception_reason?: string;
 }
 
 export interface AttendanceRecord {
@@ -97,6 +100,18 @@ export interface AttendanceRecord {
   latitude?: number;
   longitude?: number;
   selfie_url?: string;
+  outside_office?: boolean;
+  location_exception_reason?: string;
+  clock_out_outside_office?: boolean;
+  clock_out_location_exception_reason?: string;
+}
+
+export interface WorkspaceSettings {
+  workspace_name: string;
+  office_latitude: number;
+  office_longitude: number;
+  geofence_radius_meters: number;
+  required_hours_per_day: number;
 }
 
 export type LeaveType = 

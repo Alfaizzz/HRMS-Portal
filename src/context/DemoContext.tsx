@@ -32,7 +32,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isDemoMode()) {
         setBackendOffline(true);
         warning(
-          'Spring Boot backend is not responding. You can toggle to Demo Mode for instant presentation.',
+          'The HRMS backend is not responding. You can toggle to Demo Mode for instant presentation.',
           'Backend Offline'
         );
       }

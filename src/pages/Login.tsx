@@ -71,6 +71,11 @@ export const Login: React.FC = () => {
     }
   };
 
+  const modeLabel = demoMode ? 'Demo Data Mode' : 'Live Backend Mode';
+  const modeDescription = demoMode
+    ? 'Using local mock data and demo credentials.'
+    : 'Using the PostgreSQL-backed HRMS API.';
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 transition-colors">
       {/* Top right theme toggle */}
@@ -96,19 +101,24 @@ export const Login: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xs">
           {/* Demo Credentials Quick Switcher */}
           <div className="mb-6 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Instant Demo Login</span>
+                <span>{demoMode ? 'Instant Demo Login' : 'Live API Login'}</span>
               </span>
               <button
                 type="button"
                 onClick={toggleDemoMode}
                 className="text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:underline"
               >
-                Mode: <strong className={demoMode ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600'}>{demoMode ? 'Demo' : 'Real API'}</strong>
+                Mode: <strong className={demoMode ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600'}>{modeLabel}</strong>
               </button>
             </div>
+
+            <div className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {modeDescription}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -161,8 +171,8 @@ export const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400">
-            <span>Demo credentials: </span>
-            <code className="text-slate-600 dark:text-slate-300 font-mono">admin / admin123</code>
+            <span>{demoMode ? 'Demo credentials:' : 'Live backend credentials:'}</span>
+            <code className="text-slate-600 dark:text-slate-300 font-mono"> admin / admin123</code>
             <span> · </span>
             <code className="text-slate-600 dark:text-slate-300 font-mono">employee / employee123</code>
           </div>

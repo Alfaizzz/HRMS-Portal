@@ -14,6 +14,7 @@ import {
   BookIssuance,
   BookRequest,
   Resignation,
+  WorkspaceSettings,
 } from '../types';
 import {
   INITIAL_DEPARTMENTS,
@@ -52,7 +53,81 @@ interface MockDatabaseState {
   requests: BookRequest[];
   resignations: Resignation[];
   profilePictures: Record<string, string>;
+  workspaceSettings: WorkspaceSettings;
 }
+
+const INITIAL_WORKSPACE_SETTINGS: WorkspaceSettings = {
+  workspace_name: 'Head Office',
+  office_latitude: 12.9716,
+  office_longitude: 77.5946,
+  geofence_radius_meters: 150,
+  required_hours_per_day: 8,
+};
+
+const distanceInMeters = (
+  latitudeA: number,
+  longitudeA: number,
+  latitudeB: number,
+  longitudeB: number
+): number => {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latitudeDifference = radians(latitudeB - latitudeA);
+  const longitudeDifference = radians(longitudeB - longitudeA);
+  const value =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(radians(latitudeA)) *
+      Math.cos(radians(latitudeB)) *
+      Math.sin(longitudeDifference / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+};
+
+const getMockOfficeDistance = (latitude: number, longitude: number): number => {
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error('A valid GPS location is required to record attendance.');
+  }
+  return distanceInMeters(
+    latitude,
+    longitude,
+    db.workspaceSettings.office_latitude,
+    db.workspaceSettings.office_longitude
+  );
+};
+
+const parseMockPunchInTimestamp = (punchIn: PunchInRecord): Date | null => {
+  if (punchIn.punched_at) {
+    const punchedAt = new Date(punchIn.punched_at);
+    if (!Number.isNaN(punchedAt.getTime())) return punchedAt;
+  }
+
+  const dateMatch = punchIn.date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeMatch = punchIn.punch_in_time.match(
+    /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i
+  );
+  if (!dateMatch || !timeMatch) return null;
+
+  let hours = Number(timeMatch[1]);
+  const meridiem = timeMatch[4]?.toUpperCase();
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return null;
+    hours = (hours % 12) + (meridiem === 'PM' ? 12 : 0);
+  }
+  const punchedAt = new Date(
+    Number(dateMatch[1]),
+    Number(dateMatch[2]) - 1,
+    Number(dateMatch[3]),
+    hours,
+    Number(timeMatch[2]),
+    Number(timeMatch[3] || 0)
+  );
+  return Number.isNaN(punchedAt.getTime()) ? null : punchedAt;
+};
 
 const getInitialState = (): MockDatabaseState => ({
   departments: [...INITIAL_DEPARTMENTS],
@@ -71,6 +146,7 @@ const getInitialState = (): MockDatabaseState => ({
   requests: [...INITIAL_BOOK_REQUESTS],
   resignations: [...INITIAL_RESIGNATIONS],
   profilePictures: {},
+  workspaceSettings: INITIAL_WORKSPACE_SETTINGS,
 });
 
 const loadState = (): MockDatabaseState => {
@@ -81,7 +157,10 @@ const loadState = (): MockDatabaseState => {
       saveState(initial);
       return initial;
     }
-    return JSON.parse(raw);
+    return {
+      ...getInitialState(),
+      ...JSON.parse(raw),
+    };
   } catch (err) {
     console.error('Error loading mock database state from localStorage:', err);
     return getInitialState();
@@ -416,23 +495,74 @@ export const mockService = {
   },
 
   // ================= Attendance =================
+  getWorkspaceSettings: async (): Promise<WorkspaceSettings> => {
+    await delay();
+    return { ...db.workspaceSettings };
+  },
+
+  updateWorkspaceSettings: async (
+    settings: WorkspaceSettings
+  ): Promise<WorkspaceSettings> => {
+    await delay();
+    const workspaceName = settings.workspace_name.trim();
+    if (!workspaceName || workspaceName.length > 255) {
+      throw new Error('Workspace name is required and must be 255 characters or fewer.');
+    }
+    if (
+      !Number.isFinite(settings.office_latitude) ||
+      settings.office_latitude < -90 ||
+      settings.office_latitude > 90 ||
+      !Number.isFinite(settings.office_longitude) ||
+      settings.office_longitude < -180 ||
+      settings.office_longitude > 180
+    ) {
+      throw new Error('Enter valid office coordinates.');
+    }
+    if (
+      !Number.isInteger(settings.geofence_radius_meters) ||
+      settings.geofence_radius_meters < 10 ||
+      settings.geofence_radius_meters > 5000
+    ) {
+      throw new Error('Attendance radius must be between 10 and 5000 meters.');
+    }
+    if (
+      !Number.isFinite(settings.required_hours_per_day) ||
+      settings.required_hours_per_day <= 0 ||
+      settings.required_hours_per_day > 24
+    ) {
+      throw new Error('Required daily hours must be greater than 0 and no more than 24.');
+    }
+    db.workspaceSettings = { ...settings, workspace_name: workspaceName };
+    saveState(db);
+    return { ...db.workspaceSettings };
+  },
+
   punchIn: async (data: {
     user_id: string;
     latitude: number;
     longitude: number;
     selfie_base64?: string;
+    location_exception_reason?: string;
   }): Promise<PunchInRecord> => {
     await delay();
+    const distance = getMockOfficeDistance(data.latitude, data.longitude);
+    const outsideOffice = distance > db.workspaceSettings.geofence_radius_meters;
+    const exceptionReason = data.location_exception_reason?.trim() || '';
+    if (outsideOffice && !exceptionReason) {
+      throw new Error('A reason is required to clock in outside the office attendance area.');
+    }
+    if (exceptionReason.length > 500) {
+      throw new Error('The location exception reason must be 500 characters or fewer.');
+    }
     const today = new Date().toISOString().split('T')[0];
-    const existing = db.punchIns.find(
-      (p) => p.user_id === data.user_id && p.date === today
-    );
+    const existing = db.punchIns.find((p) => p.user_id === data.user_id);
     if (existing) {
-      throw new Error('User has already punched in for today!');
+      throw new Error('User already has an active punch-in. Clock out before starting another session.');
     }
 
     const emp = db.employees.find((e) => e.user_id === data.user_id);
-    const nowTime = new Date().toTimeString().split(' ')[0]; // HH:mm:ss
+    const punchedAt = new Date();
+    const nowTime = punchedAt.toTimeString().split(' ')[0];
 
     const newPunchIn: PunchInRecord = {
       punchin_id: Date.now(),
@@ -440,9 +570,12 @@ export const mockService = {
       user_name: emp ? `${emp.first_name} ${emp.last_name}` : data.user_id,
       date: today,
       punch_in_time: nowTime,
+      punched_at: punchedAt.toISOString(),
       image_location: data.selfie_base64 || 'https://via.placeholder.com/150',
       latitude: data.latitude,
       longitude: data.longitude,
+      outside_office: outsideOffice,
+      location_exception_reason: outsideOffice ? exceptionReason : undefined,
     };
 
     db.punchIns.push(newPunchIn);
@@ -454,26 +587,42 @@ export const mockService = {
     user_id: string;
     latitude: number;
     longitude: number;
+    location_exception_reason?: string;
   }): Promise<AttendanceRecord> => {
     await delay();
-    const today = new Date().toISOString().split('T')[0];
-    const punchInIndex = db.punchIns.findIndex(
-      (p) => p.user_id === data.user_id && p.date === today
-    );
+    const distance = getMockOfficeDistance(data.latitude, data.longitude);
+    const outsideOffice = distance > db.workspaceSettings.geofence_radius_meters;
+    const exceptionReason = data.location_exception_reason?.trim() || '';
+    if (outsideOffice && !exceptionReason) {
+      throw new Error('A reason is required to clock out outside the office attendance area.');
+    }
+    if (exceptionReason.length > 500) {
+      throw new Error('The location exception reason must be 500 characters or fewer.');
+    }
+    const punchInIndex = db.punchIns.reduce((latestIndex, punch, index) => {
+      if (punch.user_id !== data.user_id) return latestIndex;
+      if (latestIndex === -1) return index;
+      const latestPunch = db.punchIns[latestIndex];
+      const currentTime =
+        parseMockPunchInTimestamp(punch)?.getTime() ??
+        (Number(punch.punchin_id) || 0);
+      const latestTime =
+        parseMockPunchInTimestamp(latestPunch)?.getTime() ?? (Number(latestPunch.punchin_id) || 0);
+      return currentTime > latestTime ? index : latestIndex;
+    }, -1);
 
     if (punchInIndex === -1) {
-      throw new Error('No active punch-in found for this user today.');
+      throw new Error('No active punch-in found for this user.');
     }
 
     const punchIn = db.punchIns[punchInIndex];
     const punchOutTime = new Date().toTimeString().split(' ')[0];
 
     // Compute working duration
-    const [inH, inM, inS] = punchIn.punch_in_time.split(':').map(Number);
-    const [outH, outM, outS] = punchOutTime.split(':').map(Number);
-    const inSec = inH * 3600 + inM * 60 + inS;
-    const outSec = outH * 3600 + outM * 60 + outS;
-    const diffSec = Math.max(0, outSec - inSec);
+    const punchedInAt = parseMockPunchInTimestamp(punchIn);
+    const diffSec = punchedInAt
+      ? Math.max(0, Math.floor((Date.now() - punchedInAt.getTime()) / 1000))
+      : 0;
     const hrs = String(Math.floor(diffSec / 3600)).padStart(2, '0');
     const mins = String(Math.floor((diffSec % 3600) / 60)).padStart(2, '0');
     const secs = String(diffSec % 60).padStart(2, '0');
@@ -482,13 +631,17 @@ export const mockService = {
     const newRecord: AttendanceRecord = {
       id: Date.now(),
       user_id: data.user_id,
-      date: today,
+      date: punchIn.date || new Date().toISOString().split('T')[0],
       punch_in_time: punchIn.punch_in_time,
       punch_out_time: punchOutTime,
       hours: hoursFormatted,
       latitude: data.latitude,
       longitude: data.longitude,
       selfie_url: punchIn.image_location,
+      outside_office: punchIn.outside_office,
+      location_exception_reason: punchIn.location_exception_reason,
+      clock_out_outside_office: outsideOffice,
+      clock_out_location_exception_reason: outsideOffice ? exceptionReason : undefined,
     };
 
     db.attendanceRecords.unshift(newRecord);
